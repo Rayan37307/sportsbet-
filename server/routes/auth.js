@@ -8,6 +8,7 @@ const {
   ValidationError,
   AuthenticationError,
 } = require("../middleware/errorHandler");
+const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -435,6 +436,7 @@ router.post(
 // @access  Private
 router.post(
   "/change-password",
+  authenticateToken,
   passwordChangeValidation,
   asyncHandler(async (req, res) => {
     // Check for validation errors
@@ -510,6 +512,7 @@ router.post(
 // @access  Private
 router.get(
   "/me",
+  authenticateToken,
   asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id).select("-password");
 

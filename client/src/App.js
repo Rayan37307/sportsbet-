@@ -36,6 +36,7 @@ import Profile from "./pages/Profile/Profile";
 import Admin from "./pages/Admin/Admin";
 import Agent from "./pages/Agent/Agent";
 import NotFound from "./pages/NotFound/NotFound";
+import AuthDebug from "./components/Debug/AuthDebug";
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -182,6 +183,9 @@ function App() {
                         },
                       }}
                     />
+
+                    {/* Debug component for development */}
+                    {process.env.NODE_ENV === "development" && <AuthDebug />}
                   </BetSlipProvider>
                 </SocketProvider>
               </AuthProvider>

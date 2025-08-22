@@ -65,6 +65,24 @@ const ensureServiceInitialized = async (req, res, next) => {
   }
 };
 
+// GET /api/sports/health - Simple health check for testing
+router.get("/health", async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: "Sports API is healthy",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Health check failed",
+      error: error.message,
+    });
+  }
+});
+
 // GET /api/sports - Get all available sports
 router.get("/", ensureServiceInitialized, async (req, res) => {
   try {
@@ -92,8 +110,22 @@ router.get("/", ensureServiceInitialized, async (req, res) => {
 router.get(
   "/events",
   [
-    query("sport").optional().isString().trim(),
-    query("status").optional().isIn(["live", "upcoming", "finished", "all"]),
+    query("sport")
+      .optional()
+      .custom((value) => {
+        if (value === null || value === undefined || value === "") {
+          return true;
+        }
+        if (typeof value !== "string") {
+          throw new Error("Sport must be a string");
+        }
+        return true;
+      })
+      .trim(),
+    query("status")
+      .optional()
+      .isString()
+      .isIn(["live", "upcoming", "finished", "all"]),
     query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
   ],
   ensureServiceInitialized,
@@ -101,14 +133,25 @@ router.get(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error("Events validation errors:", errors.array());
         return res.status(400).json({
           success: false,
           message: "Validation error",
-          errors: errors.array(),
+          errors: errors.array().map((err) => ({
+            field: err.param || err.path,
+            message: err.msg,
+            value: err.value,
+          })),
         });
       }
 
-      const { sport, status, limit = 20 } = req.query;
+      // Sanitize query parameters
+      let { sport, status, limit = 20 } = req.query;
+
+      // Clean up sport parameter
+      if (sport === null || sport === undefined || sport === "") {
+        sport = undefined;
+      }
 
       let events = await oddsService.getLiveEvents(sport);
 
@@ -193,21 +236,43 @@ router.get(
   "/upcoming",
   [
     query("hours").optional().isInt({ min: 1, max: 168 }).toInt(), // Max 1 week
-    query("sport").optional().isString().trim(),
+    query("sport")
+      .optional()
+      .custom((value) => {
+        if (value === null || value === undefined || value === "") {
+          return true;
+        }
+        if (typeof value !== "string") {
+          throw new Error("Sport must be a string");
+        }
+        return true;
+      })
+      .trim(),
   ],
   ensureServiceInitialized,
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error("Upcoming validation errors:", errors.array());
         return res.status(400).json({
           success: false,
           message: "Validation error",
-          errors: errors.array(),
+          errors: errors.array().map((err) => ({
+            field: err.param || err.path,
+            message: err.msg,
+            value: err.value,
+          })),
         });
       }
 
-      const { hours = 24, sport } = req.query;
+      // Sanitize query parameters
+      let { hours = 24, sport } = req.query;
+
+      // Clean up sport parameter
+      if (sport === null || sport === undefined || sport === "") {
+        sport = undefined;
+      }
       const cutoffTime = new Date(Date.now() + hours * 60 * 60 * 1000);
 
       let events = await oddsService.getLiveEvents(sport);
@@ -383,22 +448,84 @@ router.get("/status", ensureServiceInitialized, async (req, res) => {
 router.post(
   "/refresh",
   [
-    body("sport").optional().isString().trim(),
-    body("force").optional().isBoolean(),
+    body("sport")
+      .optional()
+      .custom((value) => {
+        if (value === null || value === undefined || value === "") {
+          return true; // Allow null, undefined, or empty string
+        }
+        if (typeof value !== "string") {
+          throw new Error("Sport must be a string");
+        }
+        return true;
+      })
+      .trim(),
+    body("force")
+      .optional()
+      .custom((value) => {
+        if (value === null || value === undefined) {
+          return true;
+        }
+        if (typeof value === "boolean") {
+          return true;
+        }
+        if (value === "true" || value === "false") {
+          return true;
+        }
+        throw new Error("Force must be a boolean");
+      }),
   ],
   ensureServiceInitialized,
   async (req, res) => {
     try {
+      // Debug logging for refresh requests
+      console.log("📥 Refresh request received:", {
+        body: req.body,
+        headers: {
+          "content-type": req.headers["content-type"],
+        },
+        params: req.params,
+        query: req.query,
+      });
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error("❌ Refresh validation errors:", {
+          errors: errors.array(),
+          body: req.body,
+          contentType: req.headers["content-type"],
+        });
         return res.status(400).json({
           success: false,
-          message: "Validation error",
-          errors: errors.array(),
+          message: "Validation error - Check request format",
+          errors: errors.array().map((err) => ({
+            field: err.param || err.path,
+            message: `${err.msg} (received: ${JSON.stringify(err.value)})`,
+            value: err.value,
+            location: err.location,
+          })),
+          debug: {
+            receivedBody: req.body,
+            contentType: req.headers["content-type"],
+          },
         });
       }
 
-      const { sport, force = false } = req.body;
+      console.log("✅ Refresh validation passed");
+
+      // Sanitize the request body
+      let { sport, force = false } = req.body;
+
+      // Clean up sport parameter
+      if (sport === null || sport === undefined || sport === "") {
+        sport = undefined;
+      }
+
+      // Clean up force parameter
+      if (typeof force === "string") {
+        force = force.toLowerCase() === "true";
+      } else if (typeof force !== "boolean") {
+        force = false;
+      }
 
       // Check if we can make more API calls today (bypass in development)
       const status = oddsService.getStatus();
