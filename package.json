@@ -1,0 +1,44 @@
+{
+  "name": "sportsbook-platform",
+  "version": "1.0.0",
+  "description": "Online sportsbook platform with user management, betting engine, and real-time updates",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "nodemon server/index.js",
+    "client:dev": "cd client && npm start",
+    "server:build": "cd server && npm run build",
+    "client:build": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "start": "node server/index.js",
+    "test:sports": "node test-sports-api.js",
+    "test:sports-api": "npm run test:sports"
+  },
+  "keywords": [
+    "sportsbook",
+    "betting",
+    "gambling",
+    "platform"
+  ],
+  "author": "Sportsbook Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.4"
+  }
+}
